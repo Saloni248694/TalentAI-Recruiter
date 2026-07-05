@@ -1,0 +1,161 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #0a0a18;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+/* ── Auth Page ─────────────────────────── */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #1a1040 0%, #0a0a18 70%);
+}
+
+.auth-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 48px 40px;
+  width: 420px;
+  text-align: center;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+}
+
+.logo {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #818cf8, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-bottom: 32px;
+}
+
+/* Toggle Buttons */
+.toggle-btns {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 28px;
+}
+
+.toggle-btns button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  width: auto;
+}
+
+.toggle-btns button.active {
+  background: linear-gradient(135deg, #4F46E5, #7c3aed);
+  color: white;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+}
+
+/* Input Groups */
+.input-group {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0 14px;
+  margin-bottom: 14px;
+  transition: border-color 0.3s;
+}
+
+.input-group:focus-within {
+  border-color: #4F46E5;
+}
+
+.input-group span {
+  font-size: 1rem;
+  margin-right: 10px;
+}
+
+.input-group input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 14px 0;
+  color: #e2e8f0;
+  font-size: 14px;
+  outline: none;
+  width: auto;
+}
+
+.input-group input::placeholder {
+  color: #475569;
+}
+
+/* Submit Button */
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #4F46E5, #7c3aed);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.3s;
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.4);
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(79, 70, 229, 0.5);
+}
+
+/* Messages */
+.msg {
+  margin-top: 16px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: none;
+}
+
+.msg.error {
+  display: block;
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.msg.success {
+  display: block;
+  background: rgba(52, 211, 153, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.2);
+}

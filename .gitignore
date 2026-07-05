@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+backend/uploads/
+backend/faiss_index/
+backend/reports/
+.DS_Store
+Thumbs.db
+*.log
