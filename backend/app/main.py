@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -5,13 +6,13 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
 from app.core.database import Base, engine
-from app.api.routes import auth, resume, job  # ← all 3 must be here
+from app.api.routes import auth, resume, job, report
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="TalentAI Recruiter",
-    description="AI-Powered Recruitment Platform",
+    description="AI-Powered Recruitment Platform — resume parsing, ATS scoring, FAISS semantic matching, LangGraph agents, PDF reports",
     version="1.0.0"
 )
 
@@ -23,12 +24,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="../frontend/static"), name="static")
-templates = Jinja2Templates(directory="../frontend/templates")
+# Auto-detect frontend location (works locally AND in Docker)
+FRONTEND_DIR = "frontend" if os.path.exists("frontend") else "../frontend"
+
+app.mount("/static", StaticFiles(directory=f"{FRONTEND_DIR}/static"), name="static")
+templates = Jinja2Templates(directory=f"{FRONTEND_DIR}/templates")
 
 app.include_router(auth.router)
 app.include_router(resume.router)
-app.include_router(job.router)   # ← must be here
+app.include_router(job.router)
+app.include_router(report.router)
 
 @app.get("/", response_class=HTMLResponse)
 def login_page(request: Request):

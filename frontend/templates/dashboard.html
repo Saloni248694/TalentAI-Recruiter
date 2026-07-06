@@ -24,7 +24,7 @@
         <li id="tab-resumes" class="active" onclick="showTab('resumes')">📄 Resumes</li>
         <li id="tab-jobs" onclick="showTab('jobs')">💼 Job Description</li>
         <li id="tab-matches" onclick="showTab('matches')">🎯 Matches</li>
-        <li onclick="alert('Coming in Day 4!')">📊 Reports</li>
+        <li id="tab-reports" onclick="showTab('reports')">📊 Reports</li>
       </ul>
     </aside>
 
@@ -187,6 +187,37 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
         </div>
 
       </div>
+      <!-- REPORTS TAB -->
+      <div id="section-reports" style="display:none">
+
+        <div class="section-card">
+          <h2>📊 Download Candidate Report</h2>
+          <p class="section-sub">Generate a professional PDF report of top-ranked candidates for any job</p>
+
+          <div class="match-controls">
+            <select id="report-job-select">
+              <option value="">Select a job description...</option>
+            </select>
+            <select id="report-top-k">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+            </select>
+            <button class="upload-btn match-btn" onclick="downloadReport()">📥 Download PDF Report</button>
+          </div>
+
+          <div id="report-msg" class="msg" style="margin-top:16px"></div>
+        </div>
+
+        <div class="section-card">
+          <h2>🤖 What's in the report?</h2>
+          <p class="section-sub" style="margin-bottom:0">
+            Ranked candidate table with match & ATS scores, top candidate highlight
+            with key skills, and generation timestamp. Results are cached with Redis
+            for faster repeat downloads.
+          </p>
+        </div>
+
+      </div>
 
     </main>
   </div>
@@ -207,6 +238,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=4"></script>
+  <script src="/static/js/dashboard.js?v=5"></script>
 </body>
 </html>

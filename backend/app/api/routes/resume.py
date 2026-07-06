@@ -175,3 +175,46 @@ def delete_resume(
     db.delete(resume)
     db.commit()
     return {"message": "Resume deleted successfully"}
+
+# ── Day 4: LangGraph Agent Pipeline ──────────────
+from app.agents.workflow import run_pipeline
+
+@router.post("/{resume_id}/reanalyze")
+def reanalyze_with_agents(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Re-run a resume through the LangGraph multi-agent pipeline"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user.id
+    ).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not os.path.exists(resume.file_path):
+        raise HTTPException(status_code=404, detail="Resume file missing from disk")
+
+    # Run through agent pipeline: Parser → ATS → Report
+    report = run_pipeline(resume.file_path)
+
+    # Update DB with fresh results
+    parsed = report["candidate"]
+    ats = report["ats_analysis"]
+
+    resume.candidate_name = parsed.get("candidate_name", resume.candidate_name)
+    resume.email = parsed.get("email", resume.email)
+    resume.phone = parsed.get("phone", resume.phone)
+    resume.skills = json.dumps(parsed.get("skills", []))
+    resume.ats_score = ats.get("ats_score", resume.ats_score)
+    resume.ats_feedback = json.dumps(ats)
+    db.commit()
+
+    return {
+        "message": "Re-analyzed with LangGraph agent pipeline",
+        "pipeline": report["pipeline"],
+        "candidate_name": resume.candidate_name,
+        "ats_score": resume.ats_score
+    }

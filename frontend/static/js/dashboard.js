@@ -358,14 +358,17 @@ function updateStats(resumes) {
 
 // Update showTab to handle matches
 function showTab(tab) {
-  document.getElementById("section-resumes").style.display  = tab === "resumes" ? "block" : "none";
-  document.getElementById("section-jobs").style.display     = tab === "jobs"    ? "block" : "none";
-  document.getElementById("section-matches").style.display  = tab === "matches" ? "block" : "none";
+  document.getElementById("section-resumes").style.display = tab === "resumes" ? "block" : "none";
+  document.getElementById("section-jobs").style.display    = tab === "jobs"    ? "block" : "none";
+  document.getElementById("section-matches").style.display = tab === "matches" ? "block" : "none";
+  document.getElementById("section-reports").style.display = tab === "reports" ? "block" : "none";
   document.getElementById("tab-resumes")?.classList.toggle("active", tab === "resumes");
   document.getElementById("tab-jobs")?.classList.toggle("active",    tab === "jobs");
   document.getElementById("tab-matches")?.classList.toggle("active", tab === "matches");
+  document.getElementById("tab-reports")?.classList.toggle("active", tab === "reports");
 
   if (tab === "matches") populateJobSelect();
+  if (tab === "reports") populateReportJobSelect();
 }
 
 // Fill the job dropdown
@@ -454,4 +457,59 @@ function renderMatchResults(candidates) {
         </div>
       </div>`;
   }).join("");
+}
+
+// ══════════ DAY 4: REPORTS ══════════
+
+async function populateReportJobSelect() {
+  try {
+    const res = await fetch(`${API}/jobs/`, { headers });
+    const jobs = await res.json();
+    const select = document.getElementById("report-job-select");
+    select.innerHTML = `<option value="">Select a job description...</option>` +
+      jobs.map(j => `<option value="${j.id}">${j.title}</option>`).join("");
+  } catch (err) { console.error(err); }
+}
+
+async function downloadReport() {
+  const jobId = document.getElementById("report-job-select").value;
+  const topK  = document.getElementById("report-top-k").value;
+  const msgEl = document.getElementById("report-msg");
+
+  if (!jobId) {
+    msgEl.textContent = "Please select a job first!";
+    msgEl.className = "msg error";
+    return;
+  }
+
+  msgEl.textContent = "⏳ Generating PDF report...";
+  msgEl.className = "msg success";
+
+  try {
+    const res = await fetch(`${API}/reports/${jobId}/pdf?top_k=${topK}`, { headers });
+
+    if (!res.ok) {
+      const err = await res.json();
+      msgEl.textContent = `❌ ${err.detail || "Report generation failed"}`;
+      msgEl.className = "msg error";
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `TalentAI_Report_Job_${jobId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    msgEl.textContent = "✅ Report downloaded successfully!";
+    msgEl.className = "msg success";
+
+  } catch (err) {
+    msgEl.textContent = `❌ Error: ${err.message}`;
+    msgEl.className = "msg error";
+  }
 }
