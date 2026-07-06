@@ -82,11 +82,33 @@
           <div id="upload-results"></div>
         </div>
 
+
         <div class="section-card">
           <div class="section-header">
             <h2>📋 All Resumes</h2>
             <button class="refresh-btn" onclick="loadResumes()">🔄 Refresh</button>
           </div>
+
+          <!-- Search & Filters Bar -->
+          <div class="filter-bar">
+            <input type="text" id="search-input" placeholder="🔍 Search name, email, or skill..."
+                   oninput="debouncedSearch()">
+            <select id="score-filter" onchange="loadResumes()">
+              <option value="">All Scores</option>
+              <option value="70">High (70%+)</option>
+              <option value="50">Medium (50%+)</option>
+              <option value="low">Low (below 50%)</option>
+            </select>
+            <select id="sort-filter" onchange="loadResumes()">
+              <option value="newest">Newest First</option>
+              <option value="score_high">Highest Score</option>
+              <option value="score_low">Lowest Score</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
+            <button class="refresh-btn" onclick="clearFilters()">✕ Clear</button>
+          </div>
+
+
           <div id="resume-list">
             <div class="empty-state">No resumes yet. Upload PDFs above!</div>
           </div>
@@ -238,6 +260,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=5"></script>
+  <script src="/static/js/dashboard.js?v=6"></script>
 </body>
 </html>

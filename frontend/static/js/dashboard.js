@@ -190,10 +190,35 @@ async function loadResumes() {
     const container = document.getElementById("resume-list");
     container.innerHTML = `<div class="empty-state">Loading...</div>`;
 
-    const res = await fetch(`${API}/resumes/`, { headers });
+    const token = localStorage.getItem("token");
+    if (!token) { window.location.href = "/"; return; }
+
+    // ── Build query params from filters ──
+    const params = new URLSearchParams();
+
+    const search = document.getElementById("search-input")?.value.trim();
+    if (search) params.append("search", search);
+
+    const scoreVal = document.getElementById("score-filter")?.value;
+    if (scoreVal === "low") {
+      params.append("max_score", "49.9");
+    } else if (scoreVal) {
+      params.append("min_score", scoreVal);
+    }
+
+    const sortVal = document.getElementById("sort-filter")?.value;
+    if (sortVal) params.append("sort_by", sortVal);
+
+    const url = `${API}/resumes/${params.toString() ? "?" + params.toString() : ""}`;
+
+    const res = await fetch(url, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (res.status === 401) { window.location.href = "/"; return; }
 
     if (!res.ok) {
-      container.innerHTML = `<div class="empty-state">Failed to load.</div>`;
+      container.innerHTML = `<div class="empty-state">Failed to load resumes (${res.status})</div>`;
       return;
     }
 
@@ -204,8 +229,26 @@ async function loadResumes() {
   } catch (err) {
     console.error("loadResumes error:", err);
     document.getElementById("resume-list").innerHTML =
-      `<div class="empty-state">Error. Is server running?</div>`;
+      `<div class="empty-state">❌ ${err.message}</div>`;
   }
+}
+
+// ── Debounced search (waits 400ms after typing stops) ──
+let searchTimer = null;
+function debouncedSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadResumes, 400);
+}
+
+// ── Clear all filters ──
+function clearFilters() {
+  const s = document.getElementById("search-input");
+  const sc = document.getElementById("score-filter");
+  const so = document.getElementById("sort-filter");
+  if (s) s.value = "";
+  if (sc) sc.value = "";
+  if (so) so.value = "newest";
+  loadResumes();
 }
 
 // ── View Resume Detail ────────────────────────

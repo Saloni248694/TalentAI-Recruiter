@@ -658,3 +658,45 @@ h1 {
 }
 
 #match-progress { margin-top: 20px; }
+
+/* ══ Search & Filters ══ */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-bar input {
+  flex: 1;
+  min-width: 220px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 11px 16px;
+  color: #e2e8f0;
+  font-size: 14px;
+  outline: none;
+}
+
+.filter-bar input:focus { border-color: #4F46E5; }
+
+.filter-bar select {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: #e2e8f0;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  width: auto;
+}
+
+.filter-bar select option {
+  background: #12121f;
+  color: #e2e8f0;
+}
+
+.filter-bar .refresh-btn { flex-shrink: 0; }

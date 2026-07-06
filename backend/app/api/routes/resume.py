@@ -96,13 +96,47 @@ async def upload_resumes(
 
 @router.get("/")
 def list_resumes(
+    search: str = None,
+    min_score: float = None,
+    max_score: float = None,
+    skill: str = None,
+    sort_by: str = "newest",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all resumes for logged-in recruiter"""
-    resumes = db.query(Resume).filter(
-        Resume.user_id == current_user.id
-    ).order_by(Resume.created_at.desc()).all()
+    """Get all resumes with optional search, filters, and sorting"""
+    query = db.query(Resume).filter(Resume.user_id == current_user.id)
+
+    # Search across name, email, and skills
+    if search:
+        term = f"%{search.lower()}%"
+        query = query.filter(
+            (Resume.candidate_name.ilike(term)) |
+            (Resume.email.ilike(term)) |
+            (Resume.skills.ilike(term))
+        )
+
+    # ATS score range filter
+    if min_score is not None:
+        query = query.filter(Resume.ats_score >= min_score)
+    if max_score is not None:
+        query = query.filter(Resume.ats_score <= max_score)
+
+    # Skill filter (checks JSON string)
+    if skill:
+        query = query.filter(Resume.skills.ilike(f"%{skill}%"))
+
+    # Sorting
+    if sort_by == "score_high":
+        query = query.order_by(Resume.ats_score.desc())
+    elif sort_by == "score_low":
+        query = query.order_by(Resume.ats_score.asc())
+    elif sort_by == "name":
+        query = query.order_by(Resume.candidate_name.asc())
+    else:  # newest (default)
+        query = query.order_by(Resume.created_at.desc())
+
+    resumes = query.all()
 
     result = []
     for r in resumes:
@@ -176,16 +210,20 @@ def delete_resume(
     db.commit()
     return {"message": "Resume deleted successfully"}
 
-# ── Day 4: LangGraph Agent Pipeline ──────────────
+
+# ── Day 4: LangGraph 4-Agent Pipeline ────────────
 from app.agents.workflow import run_pipeline
+from app.models.job import Job
 
 @router.post("/{resume_id}/reanalyze")
 def reanalyze_with_agents(
     resume_id: int,
+    job_id: int = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Re-run a resume through the LangGraph multi-agent pipeline"""
+    """Re-run a resume through the 4-agent LangGraph pipeline.
+    Optionally pass ?job_id=N to include the Matching Agent's job comparison."""
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
         Resume.user_id == current_user.id
@@ -197,8 +235,21 @@ def reanalyze_with_agents(
     if not os.path.exists(resume.file_path):
         raise HTTPException(status_code=404, detail="Resume file missing from disk")
 
-    # Run through agent pipeline: Parser → ATS → Report
-    report = run_pipeline(resume.file_path)
+    # Optional: fetch job description for the Matching Agent
+    job_description = None
+    job_title = None
+    if job_id:
+        job = db.query(Job).filter(
+            Job.id == job_id,
+            Job.user_id == current_user.id
+        ).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        job_description = job.description
+        job_title = job.title
+
+    # Run through 4-agent pipeline: Parser → ATS → Matching → Report
+    report = run_pipeline(resume.file_path, job_description)
 
     # Update DB with fresh results
     parsed = report["candidate"]
@@ -213,8 +264,10 @@ def reanalyze_with_agents(
     db.commit()
 
     return {
-        "message": "Re-analyzed with LangGraph agent pipeline",
+        "message": "Re-analyzed with LangGraph 4-agent pipeline",
         "pipeline": report["pipeline"],
         "candidate_name": resume.candidate_name,
-        "ats_score": resume.ats_score
+        "ats_score": resume.ats_score,
+        "matching": report["matching"],
+        "matched_against_job": job_title
     }
