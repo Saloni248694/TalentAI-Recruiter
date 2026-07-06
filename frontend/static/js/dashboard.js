@@ -353,3 +353,105 @@ function updateStats(resumes) {
     if (highEl) highEl.textContent = high;
   }
 }
+
+// ══════════ DAY 3: MATCHING ══════════
+
+// Update showTab to handle matches
+function showTab(tab) {
+  document.getElementById("section-resumes").style.display  = tab === "resumes" ? "block" : "none";
+  document.getElementById("section-jobs").style.display     = tab === "jobs"    ? "block" : "none";
+  document.getElementById("section-matches").style.display  = tab === "matches" ? "block" : "none";
+  document.getElementById("tab-resumes")?.classList.toggle("active", tab === "resumes");
+  document.getElementById("tab-jobs")?.classList.toggle("active",    tab === "jobs");
+  document.getElementById("tab-matches")?.classList.toggle("active", tab === "matches");
+
+  if (tab === "matches") populateJobSelect();
+}
+
+// Fill the job dropdown
+async function populateJobSelect() {
+  try {
+    const res = await fetch(`${API}/jobs/`, { headers });
+    const jobs = await res.json();
+    const select = document.getElementById("match-job-select");
+    select.innerHTML = `<option value="">Select a job description...</option>` +
+      jobs.map(j => `<option value="${j.id}">${j.title}</option>`).join("");
+  } catch (err) { console.error(err); }
+}
+
+// Run the matching
+async function runMatch() {
+  const jobId = document.getElementById("match-job-select").value;
+  const topK  = document.getElementById("match-top-k").value;
+
+  if (!jobId) { alert("Please select a job first!"); return; }
+
+  document.getElementById("match-progress").style.display = "block";
+  document.getElementById("match-results").innerHTML = "";
+
+  try {
+    const res = await fetch(`${API}/jobs/${jobId}/match?top_k=${topK}`, {
+      method: "POST",
+      headers
+    });
+
+    document.getElementById("match-progress").style.display = "none";
+
+    if (!res.ok) {
+      const err = await res.json();
+      document.getElementById("match-results").innerHTML =
+        `<div class="empty-state">❌ ${err.detail || "Matching failed"}</div>`;
+      return;
+    }
+
+    const data = await res.json();
+    document.getElementById("match-results-title").textContent =
+      `🏆 Top ${data.total_matches} Candidates for: ${data.job_title}`;
+    renderMatchResults(data.candidates);
+
+  } catch (err) {
+    document.getElementById("match-progress").style.display = "none";
+    document.getElementById("match-results").innerHTML =
+      `<div class="empty-state">❌ Error: ${err.message}</div>`;
+  }
+}
+
+function renderMatchResults(candidates) {
+  const container = document.getElementById("match-results");
+
+  if (!candidates.length) {
+    container.innerHTML = `<div class="empty-state">No matching candidates found.</div>`;
+    return;
+  }
+
+  container.innerHTML = candidates.map((c, i) => {
+    const matchCls = c.match_score >= 60 ? "score-high" : c.match_score >= 40 ? "score-mid" : "score-low";
+    const rankEmoji = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i+1}`;
+
+    let skillsArr = Array.isArray(c.skills) ? c.skills : [];
+    const skills = skillsArr.slice(0, 5).join(", ");
+
+    return `
+      <div class="resume-card" onclick="viewResume(${c.resume_id})">
+        <div class="resume-left">
+          <div class="rank-badge">${rankEmoji}</div>
+          <div class="resume-avatar">${(c.candidate_name || "?")[0].toUpperCase()}</div>
+          <div class="resume-info">
+            <div class="resume-name">${c.candidate_name || "Unknown"}</div>
+            <div class="resume-email">📧 ${c.email || "No email"}</div>
+            <div class="resume-skills">🛠 ${skills || "No skills"}</div>
+          </div>
+        </div>
+        <div class="match-scores">
+          <div class="score-item">
+            <div class="ats-badge ${matchCls}">${c.match_score}%</div>
+            <div class="ats-label">Match</div>
+          </div>
+          <div class="score-item">
+            <div class="ats-badge ${c.ats_score >= 70 ? 'score-high' : c.ats_score >= 50 ? 'score-mid' : 'score-low'}">${c.ats_score}%</div>
+            <div class="ats-label">ATS</div>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+}

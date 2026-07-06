@@ -23,7 +23,7 @@
       <ul>
         <li id="tab-resumes" class="active" onclick="showTab('resumes')">📄 Resumes</li>
         <li id="tab-jobs" onclick="showTab('jobs')">💼 Job Description</li>
-        <li onclick="alert('Coming in Day 3!')">🎯 Matches</li>
+        <li id="tab-matches" onclick="showTab('matches')">🎯 Matches</li>
         <li onclick="alert('Coming in Day 4!')">📊 Reports</li>
       </ul>
     </aside>
@@ -151,6 +151,42 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
         </div>
 
       </div>
+      <!-- MATCHES TAB -->
+      <div id="section-matches" style="display:none">
+
+        <div class="section-card">
+          <h2>🎯 Match Candidates to Job</h2>
+          <p class="section-sub">Select a job — AI finds the best matching candidates using semantic search</p>
+
+          <div class="match-controls">
+            <select id="match-job-select">
+              <option value="">Select a job description...</option>
+            </select>
+            <select id="match-top-k">
+              <option value="5">Top 5</option>
+              <option value="10" selected>Top 10</option>
+            </select>
+            <button class="upload-btn match-btn" onclick="runMatch()">🔍 Find Best Candidates</button>
+          </div>
+
+          <div id="match-progress" style="display:none">
+            <div class="progress-label">🤖 AI is analyzing candidates...</div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="match-bar" style="width:60%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <h2 id="match-results-title">🏆 Ranked Candidates</h2>
+          </div>
+          <div id="match-results">
+            <div class="empty-state">Select a job and click "Find Best Candidates"</div>
+          </div>
+        </div>
+
+      </div>
 
     </main>
   </div>
@@ -171,6 +207,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=3"></script>
+  <script src="/static/js/dashboard.js?v=4"></script>
 </body>
 </html>
