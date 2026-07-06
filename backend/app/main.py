@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from app.core.database import Base, engine
-from app.api.routes import auth
 
-# Auto-create all DB tables
+from app.core.database import Base, engine
+from app.api.routes import auth, resume, job  # ← all 3 must be here
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -15,7 +15,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow frontend to talk to backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,17 +23,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve frontend files
 app.mount("/static", StaticFiles(directory="../frontend/static"), name="static")
 templates = Jinja2Templates(directory="../frontend/templates")
 
-# Include auth routes
 app.include_router(auth.router)
+app.include_router(resume.router)
+app.include_router(job.router)   # ← must be here
 
-# Pages
 @app.get("/", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 @app.get("/health")
 def health():
