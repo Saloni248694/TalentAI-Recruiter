@@ -8,6 +8,7 @@ from app.models.job import Job
 from app.models.resume import Resume
 from app.schemas.job import JobCreate
 from app.services.matcher import build_index, search_candidates
+from app.services.simulator import extract_requirements, simulate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -131,3 +132,53 @@ def delete_job(
     db.delete(job)
     db.commit()
     return {"message": "Deleted"}
+
+# ── Phase 2: What-If Simulator ───────────────────
+@router.get("/{job_id}/requirements")
+def get_requirements(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Extract toggleable requirement chips from a job description"""
+    job = db.query(Job).filter(
+        Job.id == job_id, Job.user_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    reqs = extract_requirements(job.description or "")
+    return {"job_id": job_id, "job_title": job.title, "requirements": reqs}
+
+
+@router.post("/{job_id}/simulate")
+def simulate_requirements(
+    job_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Re-rank candidate pool with modified requirements.
+    payload: {"removed_requirements": [...], "added_requirements": [...]}"""
+    job = db.query(Job).filter(
+        Job.id == job_id, Job.user_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    resumes = db.query(Resume).filter(Resume.user_id == current_user.id).all()
+    if not resumes:
+        raise HTTPException(status_code=400, detail="No resumes to match against")
+
+    resume_data = [{
+        "id": r.id,
+        "candidate_name": r.candidate_name,
+        "parsed_text": r.parsed_text,
+        "skills_text": r.skills or ""
+    } for r in resumes]
+
+    result = simulate(
+        original_jd=job.description or "",
+        resumes=resume_data,
+        removed=payload.get("removed_requirements", []),
+        added=payload.get("added_requirements", [])
+    )
+    return {"job_id": job_id, "job_title": job.title, **result}

@@ -434,9 +434,12 @@ function showTab(tab) {
   document.getElementById("tab-jobs")?.classList.toggle("active",    tab === "jobs");
   document.getElementById("tab-matches")?.classList.toggle("active", tab === "matches");
   document.getElementById("tab-reports")?.classList.toggle("active", tab === "reports");
+  document.getElementById("section-simulator").style.display = tab === "simulator" ? "block" : "none";
+  document.getElementById("tab-simulator")?.classList.toggle("active", tab === "simulator");
 
   if (tab === "matches") populateJobSelect();
   if (tab === "reports") populateReportJobSelect();
+  if (tab === "simulator") populateSimJobSelect();
 }
 
 // ══════════ DAY 3: MATCHING ══════════
@@ -717,4 +720,109 @@ async function runDebate(resumeId, jobId) {
 
 function closeDebateModal() {
   document.getElementById("debate-modal").style.display = "none";
+}
+
+
+// ══════════ PHASE 2: WHAT-IF SIMULATOR ══════════
+let simRequirements = [];
+
+async function populateSimJobSelect() {
+  try {
+    const res = await fetch(`${API}/jobs/`, { headers });
+    const jobs = await res.json();
+    const sel = document.getElementById("sim-job-select");
+    sel.innerHTML = `<option value="">Select a job description...</option>` +
+      jobs.map(j => `<option value="${j.id}">${j.title}</option>`).join("");
+  } catch (err) { console.error(err); }
+}
+
+async function loadRequirements() {
+  const jobId = document.getElementById("sim-job-select").value;
+  const chips = document.getElementById("sim-chips");
+  document.getElementById("sim-result").innerHTML = "";
+  if (!jobId) { chips.innerHTML = ""; return; }
+
+  chips.innerHTML = "⏳ Extracting requirements...";
+  try {
+    const res = await fetch(`${API}/jobs/${jobId}/requirements`, { headers });
+    const data = await res.json();
+    simRequirements = data.requirements.map(r => ({ text: r, active: true }));
+    renderChips();
+  } catch (err) {
+    chips.innerHTML = `❌ ${err.message}`;
+  }
+}
+
+function renderChips() {
+  const chips = document.getElementById("sim-chips");
+  if (!simRequirements.length) {
+    chips.innerHTML = `<span style="color:#94a3b8">No requirements detected in this JD</span>`;
+    return;
+  }
+  chips.innerHTML = simRequirements.map((r, i) => `
+    <span onclick="toggleChip(${i})"
+      style="cursor:pointer;padding:6px 14px;border-radius:20px;font-size:13px;
+      border:1px solid ${r.active ? '#4F46E5' : 'rgba(255,255,255,0.2)'};
+      background:${r.active ? 'rgba(79,70,229,0.25)' : 'rgba(0,0,0,0.3)'};
+      color:${r.active ? '#c7d2fe' : '#64748b'};
+      text-decoration:${r.active ? 'none' : 'line-through'}">
+      ${r.active ? '✓' : '✕'} ${r.text}</span>`).join("");
+}
+
+function toggleChip(i) {
+  simRequirements[i].active = !simRequirements[i].active;
+  renderChips();
+}
+
+async function runSimulation() {
+  const jobId = document.getElementById("sim-job-select").value;
+  const resultEl = document.getElementById("sim-result");
+  if (!jobId) { resultEl.innerHTML = "Select a job first"; return; }
+
+  const removed = simRequirements.filter(r => !r.active).map(r => r.text);
+  resultEl.innerHTML = "⏳ Re-ranking candidate pool...";
+
+  try {
+    const res = await fetch(`${API}/jobs/${jobId}/simulate`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ removed_requirements: removed, added_requirements: [] })
+    });
+    const d = await res.json();
+
+    const poolColor = d.deltas.pool_size_change >= 0 ? "#34d399" : "#f87171";
+    const sign = d.deltas.pool_size_change >= 0 ? "+" : "";
+
+    let html = `
+      <div style="border:2px solid ${poolColor};border-radius:10px;padding:14px;margin-bottom:14px">
+        <b style="color:${poolColor};font-size:15px">
+          ${removed.length ? `Removing ${removed.length} requirement(s):` : 'No changes —'}
+          pool ${sign}${d.deltas.pool_size_change} candidates (${sign}${d.deltas.pool_size_pct}%),
+          avg score ${d.deltas.avg_score_change >= 0 ? '+' : ''}${d.deltas.avg_score_change}%
+        </b>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <h4>Original (${d.original.pool_size} qualified, avg ${d.original.avg_score}%)</h4>
+          ${d.original.ranked.slice(0,5).map((c,i) =>
+            `<div style="padding:4px 0;font-size:13px">${i+1}. ${c.candidate_name} — ${c.match_score}%</div>`).join("")}
+        </div>
+        <div style="flex:1;min-width:260px">
+          <h4>Simulated (${d.simulated.pool_size} qualified, avg ${d.simulated.avg_score}%)</h4>
+          ${d.simulated.ranked.slice(0,5).map((c,i) =>
+            `<div style="padding:4px 0;font-size:13px">${i+1}. ${c.candidate_name} — ${c.match_score}%</div>`).join("")}
+        </div>
+      </div>`;
+
+    if (d.top_movers.length) {
+      html += `<h4 style="margin-top:14px">Biggest Movers</h4>` +
+        d.top_movers.map(m =>
+          `<div style="font-size:13px;color:${m.movement>0?'#34d399':'#f87171'}">
+            ${m.movement>0?'▲':'▼'} ${m.candidate_name} moved ${Math.abs(m.movement)} places (now ${m.new_score}%)</div>`).join("");
+    }
+
+    resultEl.innerHTML = html;
+  } catch (err) {
+    resultEl.innerHTML = `❌ ${err.message}`;
+  }
 }

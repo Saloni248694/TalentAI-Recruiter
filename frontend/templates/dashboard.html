@@ -25,6 +25,7 @@
         <li id="tab-jobs" onclick="showTab('jobs')">💼 Job Description</li>
         <li id="tab-matches" onclick="showTab('matches')">🎯 Matches</li>
         <li id="tab-reports" onclick="showTab('reports')">📊 Reports</li>
+        <li id="tab-simulator" onclick="showTab('simulator')">🎛️ Simulator</li>
       </ul>
     </aside>
 
@@ -250,6 +251,25 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </main>
   </div>
 
+  <!-- SIMULATOR TAB -->
+      <div id="section-simulator" style="display:none">
+        <div class="section-card">
+          <h2>🎛️ JD What-If Simulator</h2>
+          <p class="section-sub">Toggle requirements on/off and watch the candidate pool re-rank live</p>
+
+          <select id="sim-job-select" onchange="loadRequirements()"
+                  style="width:100%;padding:11px 14px;border-radius:10px;
+                         background:rgba(0,0,0,0.3);color:#e2e8f0;
+                         border:1px solid rgba(255,255,255,0.1);margin-bottom:8px">
+            <option value="">Select a job description...</option>
+          </select>
+
+          <div id="sim-chips" style="margin:16px 0;display:flex;flex-wrap:wrap;gap:8px"></div>
+
+          <button class="upload-btn match-btn" onclick="runSimulation()">▶️ Run Simulation</button>
+          <div id="sim-result" style="margin-top:18px"></div>
+        </div>
+      </div>
   <!-- Resume Detail Modal -->
 
   <!-- Debate Transcript Modal -->
@@ -283,6 +303,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=7"></script>
+  <script src="/static/js/dashboard.js?v=8"></script>
 </body>
 </html>
