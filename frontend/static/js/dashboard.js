@@ -436,10 +436,13 @@ function showTab(tab) {
   document.getElementById("tab-reports")?.classList.toggle("active", tab === "reports");
   document.getElementById("section-simulator").style.display = tab === "simulator" ? "block" : "none";
   document.getElementById("tab-simulator")?.classList.toggle("active", tab === "simulator");
+  document.getElementById("section-chat").style.display = tab === "chat" ? "block" : "none";
+  document.getElementById("tab-chat")?.classList.toggle("active", tab === "chat");
 
   if (tab === "matches") populateJobSelect();
   if (tab === "reports") populateReportJobSelect();
   if (tab === "simulator") populateSimJobSelect();
+  if (tab === "chat") loadChatSessions();
 }
 
 // ══════════ DAY 3: MATCHING ══════════
@@ -824,5 +827,144 @@ async function runSimulation() {
     resultEl.innerHTML = html;
   } catch (err) {
     resultEl.innerHTML = `❌ ${err.message}`;
+  }
+}
+
+// ══════════ PHASE 2: RAG CHAT ══════════
+let currentChatSession = null;
+
+async function loadChatSessions() {
+  try {
+    const res = await fetch(`${API}/chat/sessions`, { headers });
+    const sessions = await res.json();
+    const list = document.getElementById("chat-sessions-list");
+
+    if (!sessions.length) {
+      list.innerHTML = `<div style="color:#64748b;font-size:12px;text-align:center">No past chats</div>`;
+      return;
+    }
+
+    list.innerHTML = sessions.map(s => `
+      <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;margin-bottom:6px;
+           border-radius:8px;background:${s.session_id === currentChatSession ? 'rgba(79,70,229,0.3)' : 'rgba(0,0,0,0.3)'};
+           cursor:pointer;font-size:12px"
+           onclick="openChatSession(${s.session_id})">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.title}</span>
+        <span onclick="event.stopPropagation(); deleteChatSession(${s.session_id})"
+              style="color:#f87171;cursor:pointer">🗑</span>
+      </div>`).join("");
+  } catch (err) { console.error(err); }
+}
+
+async function newChatSession() {
+  try {
+    const res = await fetch(`${API}/chat/sessions`, { method: "POST", headers });
+    const data = await res.json();
+    currentChatSession = data.session_id;
+    document.getElementById("chat-window").innerHTML =
+      `<div style="color:#94a3b8;text-align:center;margin-top:120px">
+         New chat started — ask a question below</div>`;
+    loadChatSessions();
+  } catch (err) { console.error(err); }
+}
+
+async function openChatSession(sessionId) {
+  currentChatSession = sessionId;
+  try {
+    const res = await fetch(`${API}/chat/sessions/${sessionId}`, { headers });
+    const data = await res.json();
+    renderChatMessages(data.messages);
+    loadChatSessions();
+  } catch (err) { console.error(err); }
+}
+
+async function deleteChatSession(sessionId) {
+  if (!confirm("Delete this conversation?")) return;
+  await fetch(`${API}/chat/sessions/${sessionId}`, { method: "DELETE", headers });
+  if (currentChatSession === sessionId) {
+    currentChatSession = null;
+    document.getElementById("chat-window").innerHTML =
+      `<div style="color:#94a3b8;text-align:center;margin-top:120px">
+         Start a new chat and ask about your candidates</div>`;
+  }
+  loadChatSessions();
+}
+
+function renderChatMessages(messages) {
+  const win = document.getElementById("chat-window");
+  if (!messages.length) {
+    win.innerHTML = `<div style="color:#94a3b8;text-align:center;margin-top:120px">
+                       Ask a question below</div>`;
+    return;
+  }
+  win.innerHTML = messages.map(m => {
+    if (m.role === "user") {
+      return `<div style="text-align:right;margin:8px 0">
+                <span style="display:inline-block;background:#4F46E5;color:#fff;
+                       padding:8px 14px;border-radius:14px 14px 2px 14px;max-width:75%;font-size:14px">
+                  ${m.content}</span></div>`;
+    }
+    const cites = (m.citations || []).map(c =>
+      `<span onclick="viewResume(${c.resume_id})"
+             style="cursor:pointer;color:#60a5fa;text-decoration:underline;font-size:12px;margin-right:8px">
+         📄 ${c.candidate_name}</span>`).join("");
+    return `<div style="text-align:left;margin:8px 0">
+              <span style="display:inline-block;background:rgba(255,255,255,0.08);color:#e2e8f0;
+                     padding:8px 14px;border-radius:14px 14px 14px 2px;max-width:80%;font-size:14px">
+                ${m.content}
+                ${cites ? `<div style="margin-top:8px">${cites}</div>` : ""}
+              </span></div>`;
+  }).join("");
+  win.scrollTop = win.scrollHeight;
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById("chat-input");
+  const question = input.value.trim();
+  if (!question) return;
+
+  // Auto-create a session if none active
+  if (!currentChatSession) {
+    await newChatSession();
+  }
+
+  const win = document.getElementById("chat-window");
+
+  // Optimistically show the user's message + a loading bubble
+  win.innerHTML += `<div style="text-align:right;margin:8px 0">
+      <span style="display:inline-block;background:#4F46E5;color:#fff;padding:8px 14px;
+             border-radius:14px 14px 2px 14px;max-width:75%;font-size:14px">${question}</span></div>`;
+  win.innerHTML += `<div id="chat-loading" style="text-align:left;margin:8px 0;color:#94a3b8">
+                      ⏳ Searching talent pool...</div>`;
+  win.scrollTop = win.scrollHeight;
+  input.value = "";
+
+  try {
+    const res = await fetch(`${API}/chat/sessions/${currentChatSession}/message`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    });
+    const data = await res.json();
+
+    document.getElementById("chat-loading")?.remove();
+
+    const cites = (data.citations || []).map(c =>
+      `<span onclick="viewResume(${c.resume_id})"
+             style="cursor:pointer;color:#60a5fa;text-decoration:underline;font-size:12px;margin-right:8px">
+         📄 ${c.candidate_name}</span>`).join("");
+
+    win.innerHTML += `<div style="text-align:left;margin:8px 0">
+        <span style="display:inline-block;background:rgba(255,255,255,0.08);color:#e2e8f0;
+               padding:8px 14px;border-radius:14px 14px 14px 2px;max-width:80%;font-size:14px">
+          ${data.answer}
+          ${cites ? `<div style="margin-top:8px">${cites}</div>` : ""}
+        </span></div>`;
+    win.scrollTop = win.scrollHeight;
+
+    loadChatSessions();  // refresh sidebar (title may have updated)
+  } catch (err) {
+    document.getElementById("chat-loading")?.remove();
+    win.innerHTML += `<div style="color:#f87171">❌ ${err.message}</div>`;
   }
 }

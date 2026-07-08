@@ -26,6 +26,7 @@
         <li id="tab-matches" onclick="showTab('matches')">🎯 Matches</li>
         <li id="tab-reports" onclick="showTab('reports')">📊 Reports</li>
         <li id="tab-simulator" onclick="showTab('simulator')">🎛️ Simulator</li>
+        <li id="tab-chat" onclick="showTab('chat')">💬 Ask AI</li>
       </ul>
     </aside>
 
@@ -270,6 +271,42 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
           <div id="sim-result" style="margin-top:18px"></div>
         </div>
       </div>
+
+      <!-- CHAT TAB -->
+      <div id="section-chat" style="display:none">
+        <div class="section-card">
+          <h2>💬 Ask AI About Your Talent Pool</h2>
+          <p class="section-sub">Ask natural-language questions — answers cite real candidates</p>
+
+          <div style="display:flex;gap:16px;margin-top:16px">
+            <!-- Sidebar: conversation list -->
+            <div style="width:220px;flex-shrink:0">
+              <button class="upload-btn match-btn" style="width:100%;margin-bottom:10px"
+                      onclick="newChatSession()">+ New Chat</button>
+              <div id="chat-sessions-list"></div>
+            </div>
+
+            <!-- Main chat window -->
+            <div style="flex:1;min-width:0">
+              <div id="chat-window" style="min-height:320px;max-height:420px;overflow-y:auto;
+                   background:rgba(0,0,0,0.25);border-radius:12px;padding:16px;margin-bottom:12px">
+                <div style="color:#94a3b8;text-align:center;margin-top:120px">
+                  Start a new chat and ask about your candidates
+                </div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <input type="text" id="chat-input" placeholder="e.g. Who knows Python and React?"
+                       onkeydown="if(event.key==='Enter') sendChatMessage()"
+                       style="flex:1;padding:12px 16px;border-radius:10px;
+                              background:rgba(0,0,0,0.3);color:#e2e8f0;
+                              border:1px solid rgba(255,255,255,0.1)">
+                <button class="upload-btn match-btn" onclick="sendChatMessage()">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
   <!-- Resume Detail Modal -->
 
   <!-- Debate Transcript Modal -->
@@ -303,6 +340,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=8"></script>
+  <script src="/static/js/dashboard.js?v=9"></script>
 </body>
 </html>

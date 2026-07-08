@@ -8,6 +8,8 @@ from fastapi.responses import HTMLResponse
 from app.core.database import Base, engine
 from app.api.routes import auth, resume, job, report, debate
 from app.models import debate as debate_model  # ensures debates table is created
+from app.models import chat as chat_model  # creates chat_sessions + chat_messages tables
+from app.api.routes import auth, resume, job, report, debate, chat
 
 
 Base.metadata.create_all(bind=engine)
@@ -37,6 +39,7 @@ app.include_router(resume.router)
 app.include_router(job.router)
 app.include_router(report.router)
 app.include_router(debate.router)
+app.include_router(chat.router)
 
 @app.get("/", response_class=HTMLResponse)
 def login_page(request: Request):
