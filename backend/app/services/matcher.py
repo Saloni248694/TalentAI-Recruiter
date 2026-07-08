@@ -2,6 +2,9 @@ import faiss
 import numpy as np
 import json
 import os
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 from sentence_transformers import SentenceTransformer
 
 # Load embedding model once at startup (downloads ~90MB first time)

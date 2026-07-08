@@ -251,6 +251,17 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
   </div>
 
   <!-- Resume Detail Modal -->
+
+  <!-- Debate Transcript Modal -->
+    <div id="debate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+         z-index:1000;align-items:center;justify-content:center" onclick="closeDebateModal()">
+      <div style="background:#12121f;border:1px solid rgba(255,255,255,0.1);border-radius:16px;
+           max-width:720px;width:92%;max-height:85vh;overflow-y:auto;padding:24px"
+           onclick="event.stopPropagation()">
+        <span style="float:right;cursor:pointer;font-size:22px" onclick="closeDebateModal()">✕</span>
+        <div id="debate-body"></div>
+      </div>
+    </div>
   <div id="modal-overlay" class="modal-overlay" onclick="closeModal()">
     <div class="modal" onclick="event.stopPropagation()">
       <button class="modal-close" onclick="closeModal()">✕</button>
@@ -261,6 +272,7 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
               <button class="upload-btn match-btn" onclick="runAudit()">🔍 Run Consistency Audit</button>
               <div id="audit-result" style="margin-top:12px"></div>
             </div>
+
 
 
   <!-- JD Preview Modal -->

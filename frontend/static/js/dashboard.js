@@ -2,6 +2,7 @@ const API = "http://127.0.0.1:8000";
 const token = localStorage.getItem("token");
 if (!token) window.location.href = "/";
 const headers = { "Authorization": `Bearer ${token}` };
+let currentAuditResumeId = null;
 
 // ── Page Load ─────────────────────────────────
 window.addEventListener("load", () => {
@@ -13,14 +14,6 @@ window.addEventListener("load", () => {
 function logout() {
   localStorage.removeItem("token");
   window.location.href = "/";
-}
-
-// ── Tab Switching ─────────────────────────────
-function showTab(tab) {
-  document.getElementById("section-resumes").style.display = tab === "resumes" ? "block" : "none";
-  document.getElementById("section-jobs").style.display   = tab === "jobs"    ? "block" : "none";
-  document.getElementById("tab-resumes").classList.toggle("active", tab === "resumes");
-  document.getElementById("tab-jobs").classList.toggle("active",    tab === "jobs");
 }
 
 // ── JD Tab (paste vs upload) ──────────────────
@@ -89,7 +82,8 @@ async function loadJobs() {
     }
 
     const jobs = await res.json();
-    document.getElementById("total-jobs").textContent = jobs.length;
+    const totalJobsEl = document.getElementById("total-jobs");
+    if (totalJobsEl) totalJobsEl.textContent = jobs.length;
     renderJobList(jobs);
 
   } catch (err) {
@@ -97,6 +91,33 @@ async function loadJobs() {
     document.getElementById("job-list").innerHTML =
       `<div class="empty-state">Error loading jobs. Is server running?</div>`;
   }
+}
+
+function renderJobList(jobs) {
+  const container = document.getElementById("job-list");
+  if (!jobs.length) {
+    container.innerHTML = `<div class="empty-state">No job descriptions yet!</div>`;
+    return;
+  }
+  container.innerHTML = jobs.map(j => `
+    <div class="resume-card">
+      <div class="resume-left">
+        <div class="resume-avatar">${(j.title || "?")[0].toUpperCase()}</div>
+        <div class="resume-info">
+          <div class="resume-name">${j.title}</div>
+          <div class="resume-skills">${(j.description || "").slice(0, 90)}...</div>
+        </div>
+      </div>
+      <div class="resume-right">
+        <button class="delete-btn" onclick="deleteJob(${j.id})">🗑</button>
+      </div>
+    </div>`).join("");
+}
+
+async function deleteJob(id) {
+  if (!confirm("Delete this job?")) return;
+  await fetch(`${API}/jobs/${id}`, { method: "DELETE", headers });
+  loadJobs();
 }
 
 // ── Drop Zone ─────────────────────────────────
@@ -173,9 +194,11 @@ async function uploadResumes() {
 
 function showUploadResults(results) {
   const container = document.getElementById("upload-results");
+  if (!results) return;
   container.innerHTML = `<div class="results-title">Upload Results:</div>` +
     results.map(r => {
       if (r.error) return `<div class="result-item result-error">❌ ${r.filename} — ${r.error}</div>`;
+      if (r.status === "skipped") return `<div class="result-item result-error">⏭️ ${r.filename} — ${r.detail}</div>`;
       const cls = r.ats_score >= 70 ? "score-high" : r.ats_score >= 50 ? "score-mid" : "score-low";
       return `<div class="result-item ${cls}">
         ✅ <strong>${r.candidate_name || r.filename}</strong>
@@ -190,10 +213,9 @@ async function loadResumes() {
     const container = document.getElementById("resume-list");
     container.innerHTML = `<div class="empty-state">Loading...</div>`;
 
-    const token = localStorage.getItem("token");
-    if (!token) { window.location.href = "/"; return; }
+    const tok = localStorage.getItem("token");
+    if (!tok) { window.location.href = "/"; return; }
 
-    // ── Build query params from filters ──
     const params = new URLSearchParams();
 
     const search = document.getElementById("search-input")?.value.trim();
@@ -211,9 +233,7 @@ async function loadResumes() {
 
     const url = `${API}/resumes/${params.toString() ? "?" + params.toString() : ""}`;
 
-    const res = await fetch(url, {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
+    const res = await fetch(url, { headers });
 
     if (res.status === 401) { window.location.href = "/"; return; }
 
@@ -233,7 +253,7 @@ async function loadResumes() {
   }
 }
 
-// ── Debounced search (waits 400ms after typing stops) ──
+// ── Debounced search ──
 let searchTimer = null;
 function debouncedSearch() {
   clearTimeout(searchTimer);
@@ -252,9 +272,8 @@ function clearFilters() {
 }
 
 // ── View Resume Detail ────────────────────────
-currentAuditResumeId = id;
-
 async function viewResume(id) {
+  currentAuditResumeId = id;
   try {
     const res = await fetch(`${API}/resumes/${id}`, { headers });
     const r   = await res.json();
@@ -327,6 +346,11 @@ async function viewResume(id) {
             <h4>🤖 AI Summary</h4>
             <p>${ats.optimized_summary}</p>
           </div>` : ""}
+      </div>
+
+      <div style="margin-top:16px">
+        <button class="upload-btn match-btn" onclick="runAudit()">🔍 Run Consistency Audit</button>
+        <div id="audit-result" style="margin-top:12px"></div>
       </div>`;
 
     document.getElementById("modal-overlay").style.display = "flex";
@@ -353,7 +377,6 @@ function renderResumeList(resumes) {
   container.innerHTML = resumes.map(r => {
     const cls = r.ats_score >= 70 ? "score-high" : r.ats_score >= 50 ? "score-mid" : "score-low";
 
-    // Safely handle skills — could be array OR string
     let skillsArr = [];
     if (Array.isArray(r.skills)) {
       skillsArr = r.skills;
@@ -361,7 +384,6 @@ function renderResumeList(resumes) {
       try { skillsArr = JSON.parse(r.skills); } catch { skillsArr = []; }
     }
     const skills = skillsArr.slice(0, 4).join(", ");
-
     const name = r.candidate_name || "Unknown";
 
     return `
@@ -396,12 +418,13 @@ function updateStats(resumes) {
     const high = resumes.filter(r => Number(r.ats_score) >= 70).length;
     if (avgEl)  avgEl.textContent  = avg.toFixed(1) + "%";
     if (highEl) highEl.textContent = high;
+  } else {
+    if (avgEl)  avgEl.textContent  = "0%";
+    if (highEl) highEl.textContent = "0";
   }
 }
 
-// ══════════ DAY 3: MATCHING ══════════
-
-// Update showTab to handle matches
+// ══════════ TAB SWITCHING ══════════
 function showTab(tab) {
   document.getElementById("section-resumes").style.display = tab === "resumes" ? "block" : "none";
   document.getElementById("section-jobs").style.display    = tab === "jobs"    ? "block" : "none";
@@ -416,7 +439,7 @@ function showTab(tab) {
   if (tab === "reports") populateReportJobSelect();
 }
 
-// Fill the job dropdown
+// ══════════ DAY 3: MATCHING ══════════
 async function populateJobSelect() {
   try {
     const res = await fetch(`${API}/jobs/`, { headers });
@@ -427,12 +450,12 @@ async function populateJobSelect() {
   } catch (err) { console.error(err); }
 }
 
-// Run the matching
 async function runMatch() {
   const jobId = document.getElementById("match-job-select").value;
   const topK  = document.getElementById("match-top-k").value;
 
   if (!jobId) { alert("Please select a job first!"); return; }
+  window.currentMatchJobId = jobId;
 
   document.getElementById("match-progress").style.display = "block";
   document.getElementById("match-results").innerHTML = "";
@@ -480,8 +503,8 @@ function renderMatchResults(candidates) {
     const skills = skillsArr.slice(0, 5).join(", ");
 
     return `
-      <div class="resume-card" onclick="viewResume(${c.resume_id})">
-        <div class="resume-left">
+      <div class="resume-card">
+        <div class="resume-left" onclick="viewResume(${c.resume_id})" style="cursor:pointer">
           <div class="rank-badge">${rankEmoji}</div>
           <div class="resume-avatar">${(c.candidate_name || "?")[0].toUpperCase()}</div>
           <div class="resume-info">
@@ -499,13 +522,14 @@ function renderMatchResults(candidates) {
             <div class="ats-badge ${c.ats_score >= 70 ? 'score-high' : c.ats_score >= 50 ? 'score-mid' : 'score-low'}">${c.ats_score}%</div>
             <div class="ats-label">ATS</div>
           </div>
+          <button class="delete-btn" style="margin-top:8px;white-space:nowrap"
+            onclick="runDebate(${c.resume_id}, window.currentMatchJobId)">⚖️ Debate</button>
         </div>
       </div>`;
   }).join("");
 }
 
 // ══════════ DAY 4: REPORTS ══════════
-
 async function populateReportJobSelect() {
   try {
     const res = await fetch(`${API}/jobs/`, { headers });
@@ -560,7 +584,6 @@ async function downloadReport() {
 }
 
 // ══════════ CONTACT DIRECTORY EXPORT ══════════
-
 async function downloadContactsPDF() {
   const msgEl = document.getElementById("contacts-msg");
   msgEl.textContent = "⏳ Generating contact directory...";
@@ -596,12 +619,9 @@ async function downloadContactsPDF() {
 }
 
 // ══════════ PHASE 2: CONSISTENCY AUDIT ══════════
-
-let currentAuditResumeId = null;  // set this in your openResumeModal function
-
 async function runAudit() {
   const container = document.getElementById("audit-result");
-  const id = currentAuditResumeId || window.currentResumeId;
+  const id = currentAuditResumeId;
   if (!id) { container.innerHTML = "No resume selected"; return; }
 
   container.innerHTML = "⏳ Auditing...";
@@ -642,4 +662,59 @@ async function runAudit() {
   } catch (err) {
     container.innerHTML = `❌ ${err.message}`;
   }
+}
+
+// ══════════ PHASE 2: AI DEBATE ══════════
+async function runDebate(resumeId, jobId) {
+  const modal = document.getElementById("debate-modal");
+  const body = document.getElementById("debate-body");
+  modal.style.display = "flex";
+  body.innerHTML = "⏳ Running Advocate vs. Skeptic vs. Judge debate...";
+
+  try {
+    const res = await fetch(`${API}/debate/${resumeId}/${jobId}`, {
+      method: "POST", headers
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      body.innerHTML = `❌ ${err.detail}`;
+      return;
+    }
+    const d = await res.json();
+
+    const recColor = { "shortlist": "#34d399", "reject": "#f87171", "borderline": "#fbbf24" };
+    const mockTag = d.is_mock
+      ? `<span style="background:#7c3aed;padding:2px 8px;border-radius:6px;font-size:11px">MOCK MODE — real AI debate activates with API credits</span>`
+      : "";
+
+    body.innerHTML = `
+      <h3 style="margin-bottom:4px">${d.candidate_name} — ${d.job_title} ${mockTag}</h3>
+
+      <div style="border-left:3px solid #34d399;padding:8px 12px;margin:10px 0;background:rgba(0,0,0,0.25);border-radius:6px">
+        <b style="color:#34d399">🟢 ADVOCATE</b><br>${d.advocate_case}
+      </div>
+
+      <div style="border-left:3px solid #f87171;padding:8px 12px;margin:10px 0;background:rgba(0,0,0,0.25);border-radius:6px">
+        <b style="color:#f87171">🔴 SKEPTIC</b><br>${d.skeptic_case}
+      </div>
+
+      <div style="border-left:3px solid #60a5fa;padding:8px 12px;margin:10px 0;background:rgba(0,0,0,0.25);border-radius:6px">
+        <b style="color:#60a5fa">🟢 ADVOCATE REBUTTAL</b><br>${d.rebuttal}
+      </div>
+
+      <div style="border:2px solid ${recColor[d.verdict.recommendation] || '#94a3b8'};padding:12px;margin:14px 0;border-radius:10px">
+        <b style="font-size:16px;color:${recColor[d.verdict.recommendation]}">
+          ⚖️ VERDICT: ${d.verdict.recommendation.toUpperCase()}</b>
+        <span style="float:right">Confidence: ${d.verdict.confidence}%</span>
+        <ul style="margin-top:8px;font-size:13px">
+          ${d.verdict.key_reasons.map(r => `<li>${r}</li>`).join("")}
+        </ul>
+      </div>`;
+  } catch (err) {
+    body.innerHTML = `❌ ${err.message}`;
+  }
+}
+
+function closeDebateModal() {
+  document.getElementById("debate-modal").style.display = "none";
 }
