@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres123@db:5432/talentai
       SECRET_KEY: change-this-in-production
       REDIS_URL: redis://redis:6379
-      CLAUDE_API_KEY: ""
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
     depends_on:
       - db
       - redis

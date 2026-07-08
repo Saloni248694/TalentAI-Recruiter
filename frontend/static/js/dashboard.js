@@ -252,6 +252,8 @@ function clearFilters() {
 }
 
 // ── View Resume Detail ────────────────────────
+currentAuditResumeId = id;
+
 async function viewResume(id) {
   try {
     const res = await fetch(`${API}/resumes/${id}`, { headers });
@@ -554,5 +556,90 @@ async function downloadReport() {
   } catch (err) {
     msgEl.textContent = `❌ Error: ${err.message}`;
     msgEl.className = "msg error";
+  }
+}
+
+// ══════════ CONTACT DIRECTORY EXPORT ══════════
+
+async function downloadContactsPDF() {
+  const msgEl = document.getElementById("contacts-msg");
+  msgEl.textContent = "⏳ Generating contact directory...";
+  msgEl.className = "msg success";
+
+  try {
+    const res = await fetch(`${API}/reports/contacts/pdf`, { headers });
+
+    if (!res.ok) {
+      const err = await res.json();
+      msgEl.textContent = `❌ ${err.detail || "Export failed"}`;
+      msgEl.className = "msg error";
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "TalentAI_Contact_Directory.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    msgEl.textContent = "✅ Contact directory downloaded!";
+    msgEl.className = "msg success";
+
+  } catch (err) {
+    msgEl.textContent = `❌ Error: ${err.message}`;
+    msgEl.className = "msg error";
+  }
+}
+
+// ══════════ PHASE 2: CONSISTENCY AUDIT ══════════
+
+let currentAuditResumeId = null;  // set this in your openResumeModal function
+
+async function runAudit() {
+  const container = document.getElementById("audit-result");
+  const id = currentAuditResumeId || window.currentResumeId;
+  if (!id) { container.innerHTML = "No resume selected"; return; }
+
+  container.innerHTML = "⏳ Auditing...";
+
+  try {
+    const res = await fetch(`${API}/resumes/${id}/audit`, {
+      method: "POST", headers
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      container.innerHTML = `❌ ${err.detail}`;
+      return;
+    }
+    const data = await res.json();
+
+    const sevColor = { "info": "#60a5fa", "warning": "#fbbf24", "red-flag": "#f87171" };
+    const scoreColor = data.consistency_score >= 80 ? "#34d399" :
+                       data.consistency_score >= 50 ? "#fbbf24" : "#f87171";
+
+    let html = `<div style="font-size:18px;font-weight:bold;color:${scoreColor}">
+                  Consistency Score: ${data.consistency_score}/100</div>
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+                  ${data.date_ranges_found} date ranges analyzed · ${data.total_flags} flags
+                  ${data.llm_audit_included ? "· AI audit included" : "· rules-only (AI audit pending)"}</div>`;
+
+    if (data.flags.length === 0) {
+      html += `<div style="color:#34d399">✅ No consistency issues detected</div>`;
+    } else {
+      data.flags.forEach(f => {
+        html += `<div style="border-left:3px solid ${sevColor[f.severity] || '#94a3b8'};
+                   padding:6px 10px;margin:6px 0;background:rgba(0,0,0,0.25);
+                   border-radius:6px;font-size:13px">
+                   <b style="color:${sevColor[f.severity]}">${f.severity.toUpperCase()}</b>
+                   — ${f.detail}</div>`;
+      });
+    }
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = `❌ ${err.message}`;
   }
 }

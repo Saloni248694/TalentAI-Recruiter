@@ -239,8 +239,14 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
           </p>
         </div>
 
-      </div>
+        <div class="section-card">
+          <h2>📇 Candidate Contact Directory</h2>
+          <p class="section-sub">Export names, emails & phone numbers of ALL candidates in one PDF</p>
+          <button class="upload-btn match-btn" onclick="downloadContactsPDF()">📥 Download Contact Directory</button>
+          <div id="contacts-msg" class="msg" style="margin-top:16px"></div>
+        </div>
 
+      </div>
     </main>
   </div>
 
@@ -251,6 +257,11 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
       <div id="modal-content"></div>
     </div>
   </div>
+  <div style="margin-top:16px">
+              <button class="upload-btn match-btn" onclick="runAudit()">🔍 Run Consistency Audit</button>
+              <div id="audit-result" style="margin-top:12px"></div>
+            </div>
+
 
   <!-- JD Preview Modal -->
   <div id="jd-modal-overlay" class="modal-overlay" onclick="closeJDModal()">
@@ -260,6 +271,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=6"></script>
+  <script src="/static/js/dashboard.js?v=7"></script>
 </body>
 </html>

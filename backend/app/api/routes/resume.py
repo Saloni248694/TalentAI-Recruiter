@@ -12,6 +12,8 @@ from app.models.resume import Resume
 from app.services.parser import extract_text_from_pdf, parse_resume_with_claude
 from app.services.ats import analyze_ats
 from app.core.config import settings
+from app.services.llm import ask_claude_json, llm_available
+from app.services.auditor import audit_resume
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
 
@@ -47,7 +49,7 @@ async def upload_resumes(
             text = extract_text_from_pdf(file_path)
 
             # Step 3: Parse resume with Gemini
-            parsed = parse_resume_with_claude(text)
+            parsed = parse_resume_with_claude(text, filename=file.filename)
 
 
             # Step 4: ATS Analysis with Gemini
@@ -270,4 +272,84 @@ def reanalyze_with_agents(
         "ats_score": resume.ats_score,
         "matching": report["matching"],
         "matched_against_job": job_title
+    }
+
+# ── Phase 2: AI Resume Optimizer ─────────────────
+@router.post("/{resume_id}/optimize")
+def optimize_resume(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """AI-rewritten bullet points and tailored summary for a resume"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user.id
+    ).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not llm_available:
+        raise HTTPException(
+            status_code=503,
+            detail="Optimizer requires Claude API — set CLAUDE_API_KEY in .env"
+        )
+
+    try:
+        system = (
+            "You are an expert resume coach. Respond with ONLY valid JSON, "
+            "no markdown, no code fences."
+        )
+        prompt = f"""Improve this resume. Return ONLY JSON in this exact schema:
+{{
+  "optimized_summary": "a compelling 3-sentence professional summary",
+  "improved_bullets": [
+    {{"original": "weak line from resume", "improved": "stronger rewritten version with action verb and impact"}}
+  ],
+  "missing_keywords": ["important industry keywords the resume should add"],
+  "overall_advice": "2-3 sentences of the most important improvement advice"
+}}
+
+Rules: improved_bullets max 5 items, missing_keywords max 8.
+
+RESUME TEXT:
+{(resume.parsed_text or "")[:5000]}"""
+
+        result = ask_claude_json(prompt, system=system, max_tokens=1800)
+        return {
+            "resume_id": resume_id,
+            "candidate_name": resume.candidate_name,
+            "optimization": result
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+    
+    # ── Phase 2: Consistency Auditor ─────────────────
+@router.post("/{resume_id}/audit")
+def audit_resume_endpoint(
+    resume_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Fraud/inflation audit: timeline analysis, claim verification, consistency score"""
+    resume = db.query(Resume).filter(
+        Resume.id == resume_id,
+        Resume.user_id == current_user.id
+    ).first()
+
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not resume.parsed_text:
+        raise HTTPException(status_code=400, detail="No parsed text available for this resume")
+
+    skills = json.loads(resume.skills) if resume.skills else []
+    result = audit_resume(resume.parsed_text, skills)
+
+    return {
+        "resume_id": resume_id,
+        "candidate_name": resume.candidate_name,
+        **result
     }

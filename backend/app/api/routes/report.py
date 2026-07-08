@@ -12,9 +12,40 @@ from app.models.resume import Resume
 from app.services.report import generate_pdf_report
 from app.services.matcher import build_index, search_candidates
 from app.services.cache import cache_get, cache_set
+from app.services.report import generate_pdf_report, generate_contacts_pdf
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
+@router.get("/contacts/pdf")
+def download_contacts_pdf(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download a contact directory PDF of ALL candidates (name, email, phone)"""
+
+    resumes = db.query(Resume).filter(
+        Resume.user_id == current_user.id
+    ).order_by(Resume.candidate_name.asc()).all()
+
+    if not resumes:
+        raise HTTPException(status_code=400, detail="No resumes uploaded yet")
+
+    candidates = [{
+        "candidate_name": r.candidate_name,
+        "email": r.email,
+        "phone": r.phone
+    } for r in resumes]
+
+    os.makedirs("reports", exist_ok=True)
+    output_path = "reports/TalentAI_Contact_Directory.pdf"
+
+    generate_contacts_pdf(candidates, output_path)
+
+    return FileResponse(
+        output_path,
+        media_type="application/pdf",
+        filename="TalentAI_Contact_Directory.pdf"
+    )
 
 @router.get("/{job_id}/pdf")
 def download_pdf_report(
@@ -77,3 +108,4 @@ def download_pdf_report(
         media_type="application/pdf",
         filename=f"TalentAI_Report_{safe_title}.pdf"
     )
+

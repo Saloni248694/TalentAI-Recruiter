@@ -22,7 +22,7 @@ class AgentState(TypedDict):
 def parser_agent(state: AgentState) -> AgentState:
     """Extracts text from PDF and parses candidate info"""
     text = extract_text_from_pdf(state["file_path"])
-    parsed = parse_resume_with_claude(text)
+    parsed = parse_resume_with_claude(text, filename=os.path.basename(state["file_path"]))
     return {
         **state,
         "parsed_text": text,
