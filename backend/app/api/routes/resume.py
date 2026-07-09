@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
+from app.models.debate import Debate
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
@@ -195,22 +196,19 @@ def delete_resume(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete a resume"""
     resume = db.query(Resume).filter(
         Resume.id == resume_id,
         Resume.user_id == current_user.id
     ).first()
-
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    # Delete file from disk
-    if os.path.exists(resume.file_path):
-        os.remove(resume.file_path)
+    # Remove dependent debate rows first (foreign-key constraint)
+    db.query(Debate).filter(Debate.resume_id == resume_id).delete()
 
     db.delete(resume)
     db.commit()
-    return {"message": "Resume deleted successfully"}
+    return {"message": "Resume deleted"}
 
 
 # ── Day 4: LangGraph 4-Agent Pipeline ────────────
