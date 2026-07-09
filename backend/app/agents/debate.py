@@ -88,20 +88,17 @@ Return ONLY JSON:
 # ── Build the graph ──────────────────────────────
 def build_debate_workflow():
     graph = StateGraph(DebateState)
-    graph.add_node("advocate", advocate_agent)
-    graph.add_node("skeptic", skeptic_agent)
-    graph.add_node("rebuttal", rebuttal_agent)
-    graph.add_node("judge", judge_agent)
+    graph.add_node("advocate_node", advocate_agent)
+    graph.add_node("skeptic_node", skeptic_agent)
+    graph.add_node("rebuttal_node", rebuttal_agent)
+    graph.add_node("judge_node", judge_agent)
 
-    graph.set_entry_point("advocate")
-    graph.add_edge("advocate", "skeptic")
-    graph.add_edge("skeptic", "rebuttal")
-    graph.add_edge("rebuttal", "judge")
-    graph.add_edge("judge", END)
+    graph.set_entry_point("advocate_node")
+    graph.add_edge("advocate_node", "skeptic_node")
+    graph.add_edge("skeptic_node", "rebuttal_node")
+    graph.add_edge("rebuttal_node", "judge_node")
+    graph.add_edge("judge_node", END)
     return graph.compile()
-
-
-debate_workflow = build_debate_workflow()
 
 
 # ── Mock transcript (UI testing without credits) ─
