@@ -117,9 +117,11 @@ def answer_question(question: str, resumes: list, history: list = None) -> dict:
     if not llm_available:
         names = ", ".join(seen.values())
         return {
-            "answer": f"Based on your talent pool (hybrid search + re-ranking), these candidates "
-                      f"appear most relevant: {names}. (Connect the Claude API for full "
-                      f"natural-language answers.)",
+            "answer": f"⚠️ AI answering is currently unavailable (no API credits), so I can't "
+                      f"reason about your specific question yet. Based on keyword + semantic "
+                      f"search, these candidates' resumes are most related to your query and "
+                      f"worth reviewing manually: {names}. Full natural-language answers will "
+                      f"work automatically once the Claude API is connected.",
             "citations": citations,
             "llm_used": False
         }
@@ -150,9 +152,13 @@ Answer concisely, citing specific candidate names as evidence."""
         answer = ask_claude(prompt, system=system, max_tokens=700)
         return {"answer": answer, "citations": citations, "llm_used": True}
     except Exception as e:
+        print(f"⚠️ RAG synthesis failed: {e}")
         names = ", ".join(seen.values())
         return {
-            "answer": f"Relevant candidates: {names}. (AI synthesis unavailable: {e})",
+            "answer": f"⚠️ AI answering is temporarily unavailable, so I can't reason about "
+                      f"your specific question right now. These candidates are most related "
+                      f"to your query based on search: {names}. (This will work fully once "
+                      f"API access is restored.)",
             "citations": citations,
             "llm_used": False
         }

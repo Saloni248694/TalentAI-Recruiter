@@ -34,7 +34,23 @@ async def upload_resumes(
         if not file.filename.endswith(".pdf"):
             results.append({
                 "filename": file.filename,
-                "error": "Only PDF files are allowed"
+                "error": "Only PDF files are allowed",
+                "status": "failed"
+            })
+            continue
+
+        # ── Duplicate guard: skip if this user already has a resume with this filename ──
+        existing = db.query(Resume).filter(
+            Resume.user_id == current_user.id,
+            Resume.filename == file.filename
+        ).first()
+        if existing:
+            results.append({
+                "filename": file.filename,
+                "resume_id": existing.id,
+                "candidate_name": existing.candidate_name,
+                "status": "skipped",
+                "reason": "A resume with this filename already exists"
             })
             continue
 
@@ -49,12 +65,31 @@ async def upload_resumes(
             # Step 2: Extract text from PDF
             text = extract_text_from_pdf(file_path)
 
-            # Step 3: Parse resume with Gemini
+            # Step 3: Parse resume (Claude with regex fallback)
             parsed = parse_resume_with_claude(text, filename=file.filename)
 
-
-            # Step 4: ATS Analysis with Gemini
+            # Step 4: ATS Analysis
             ats_result = analyze_ats(text)
+
+            # ── Secondary duplicate guard: same candidate email already present ──
+            parsed_email = parsed.get("email", "")
+            if parsed_email:
+                dup_by_email = db.query(Resume).filter(
+                    Resume.user_id == current_user.id,
+                    Resume.email == parsed_email
+                ).first()
+                if dup_by_email:
+                    # Clean up the file we just saved, then skip
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                    results.append({
+                        "filename": file.filename,
+                        "resume_id": dup_by_email.id,
+                        "candidate_name": dup_by_email.candidate_name,
+                        "status": "skipped",
+                        "reason": f"A resume with email {parsed_email} already exists"
+                    })
+                    continue
 
             # Step 5: Save to PostgreSQL
             resume = Resume(
@@ -323,8 +358,9 @@ RESUME TEXT:
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
-    
-    # ── Phase 2: Consistency Auditor ─────────────────
+
+
+# ── Phase 2: Consistency Auditor ─────────────────
 @router.post("/{resume_id}/audit")
 def audit_resume_endpoint(
     resume_id: int,

@@ -22,9 +22,20 @@ def create_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    # ── Duplicate guard: reject if this user already has a job with the same title ──
+    existing = db.query(Job).filter(
+        Job.user_id == current_user.id,
+        Job.title.ilike(job.title.strip())
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A job titled '{job.title}' already exists"
+        )
+
     new_job = Job(
         user_id=current_user.id,
-        title=job.title,
+        title=job.title.strip(),
         description=job.description
     )
     db.add(new_job)
@@ -135,6 +146,7 @@ def delete_job(
     db.delete(job)
     db.commit()
     return {"message": "Deleted"}
+
 
 # ── Phase 2: What-If Simulator ───────────────────
 @router.get("/{job_id}/requirements")

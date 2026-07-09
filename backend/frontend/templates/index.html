@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalentAI — Login</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+    <div class="logo">🤖</div>
+    <h1>TalentAI</h1>
+    <p class="subtitle">AI-Powered Recruiter Platform</p>
+
+    <div class="toggle-btns">
+      <button id="btn-login" class="active" onclick="showLogin()">Login</button>
+      <button id="btn-register" onclick="showRegister()">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="login-form">
+      <div class="input-group">
+        <span>📧</span>
+        <input type="email" id="login-email" placeholder="Email Address" required>
+      </div>
+      <div class="input-group">
+        <span>🔒</span>
+        <input type="password" id="login-pass" placeholder="Password" required>
+      </div>
+      <button type="submit" class="submit-btn">Login →</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="register-form" style="display:none">
+      <div class="input-group">
+        <span>👤</span>
+        <input type="text" id="reg-name" placeholder="Full Name" required>
+      </div>
+      <div class="input-group">
+        <span>📧</span>
+        <input type="email" id="reg-email" placeholder="Email Address" required>
+      </div>
+      <div class="input-group">
+        <span>🔒</span>
+        <input type="password" id="reg-pass" placeholder="Password" required>
+      </div>
+      <button type="submit" class="submit-btn">Create Account →</button>
+    </form>
+
+    <p id="msg" class="msg"></p>
+  </div>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>
