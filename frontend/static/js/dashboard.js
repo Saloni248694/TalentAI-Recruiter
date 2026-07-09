@@ -26,12 +26,32 @@ function switchJDTab(tab) {
 }
 
 // ── Handle JD PDF ─────────────────────────────
-let jdPdfText = "";
-function handleJDFile(input) {
+async function handleJDFile(input) {
   const file = input.files[0];
   if (!file) return;
-  document.getElementById("jd-file-name").textContent = `📄 ${file.name} selected`;
-  jdPdfText = `[PDF: ${file.name}]`;
+  const nameEl = document.getElementById("jd-file-name");
+  nameEl.textContent = `⏳ Extracting text from ${file.name}...`;
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API}/jobs/upload-jd-pdf`, {
+      method: "POST", headers, body: formData
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      nameEl.textContent = `❌ ${err.detail || "Extraction failed"}`;
+      jdPdfText = "";
+      return;
+    }
+    const data = await res.json();
+    jdPdfText = data.text;   // real extracted text
+    nameEl.textContent = `📄 ${file.name} — text extracted ✓ (${data.text.length} chars)`;
+  } catch (err) {
+    nameEl.textContent = `❌ ${err.message}`;
+    jdPdfText = "";
+  }
 }
 
 // ── Save Job ──────────────────────────────────

@@ -9,6 +9,9 @@ from app.models.resume import Resume
 from app.schemas.job import JobCreate
 from app.services.matcher import build_index, search_candidates
 from app.services.simulator import extract_requirements, simulate
+from fastapi import UploadFile, File
+from app.services.parser import extract_text_from_pdf
+import tempfile, os
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -182,3 +185,26 @@ def simulate_requirements(
         added=payload.get("added_requirements", [])
     )
     return {"job_id": job_id, "job_title": job.title, **result}
+
+
+@router.post("/upload-jd-pdf")
+async def upload_jd_pdf(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Extract text from an uploaded JD PDF (returns text, does not save)."""
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files allowed")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    try:
+        text = extract_text_from_pdf(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+    if not text or text.startswith("Error") or text == "Empty PDF":
+        raise HTTPException(status_code=400, detail="Could not extract text from this PDF")
+
+    return {"filename": file.filename, "text": text}

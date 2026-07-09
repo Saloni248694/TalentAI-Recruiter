@@ -148,15 +148,16 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
               </div>
 
               <div id="jd-upload-area" style="display:none">
-                <div id="jd-drop-zone" onclick="document.getElementById('jd-file').click()">
-                  <div class="drop-icon">📄</div>
-                  <p class="drop-text">Click to upload JD as PDF</p>
-                  <input type="file" id="jd-file" accept=".pdf" style="display:none"
-                    onchange="handleJDFile(this)">
-                </div>
-                <div id="jd-file-name"></div>
-              </div>
-            </div>
+  <input type="file" id="jd-file-input" accept=".pdf"
+         style="display:none" onchange="handleJDFile(this)">
+  <div style="cursor:pointer;text-align:center;padding:20px;
+              border:2px dashed rgba(255,255,255,0.2);border-radius:10px"
+       onclick="document.getElementById('jd-file-input').click()">
+    <div style="font-size:32px">📄</div>
+    <p>Click to upload JD as PDF</p>
+    <div id="jd-file-name" style="margin-top:8px;color:#94a3b8"></div>
+  </div>
+</div>
 
             <button class="upload-btn" onclick="saveJob()">💾 Save Job Description</button>
             <div id="jd-msg" class="msg"></div>
@@ -340,6 +341,6 @@ We are looking for a Senior Python Developer with 3+ years of experience in Fast
     </div>
   </div>
 
-  <script src="/static/js/dashboard.js?v=9"></script>
+  <script src="/static/js/dashboard.js?v=10"></script>
 </body>
 </html>
