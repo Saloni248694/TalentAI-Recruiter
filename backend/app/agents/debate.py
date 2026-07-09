@@ -133,7 +133,8 @@ def mock_debate(candidate_name: str) -> dict:
 # ── Main entry point ─────────────────────────────
 def run_debate(resume_text: str, job_description: str, candidate_name: str,
                force_mock: bool = False) -> dict:
-    """Run the full debate. Uses mock transcript if no API available or force_mock=True."""
+    """Run the full debate. Falls back to mock transcript if no API,
+    force_mock=True, OR any API failure (no credits, network, rate limit)."""
 
     if force_mock or not llm_available:
         result = mock_debate(candidate_name)
@@ -151,12 +152,21 @@ def run_debate(resume_text: str, job_description: str, candidate_name: str,
         "verdict": None,
         "status": "started"
     }
-    final = debate_workflow.invoke(initial)
-    return {
-        "advocate_case": final["advocate_case"],
-        "skeptic_case": final["skeptic_case"],
-        "rebuttal": final["rebuttal"],
-        "verdict": final["verdict"],
-        "is_mock": False,
-        "pipeline": ["advocate", "skeptic", "rebuttal", "judge"]
-    }
+
+    try:
+        final = debate_workflow.invoke(initial)
+        return {
+            "advocate_case": final["advocate_case"],
+            "skeptic_case": final["skeptic_case"],
+            "rebuttal": final["rebuttal"],
+            "verdict": final["verdict"],
+            "is_mock": False,
+            "pipeline": ["advocate", "skeptic", "rebuttal", "judge"]
+        }
+    except Exception as e:
+        # API failed (no credits, network, rate limit) → graceful mock fallback
+        print(f"⚠️ Debate LLM failed ({e}) — using mock transcript")
+        result = mock_debate(candidate_name)
+        result["is_mock"] = True
+        result["pipeline"] = ["advocate", "skeptic", "rebuttal", "judge"]
+        return result

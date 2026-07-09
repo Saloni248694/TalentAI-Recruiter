@@ -1,0 +1,1 @@
+![CI](https://github.com/Saloni248694/TalentAI-Recruiter/actions/workflows/ci.yml/badge.svg)
